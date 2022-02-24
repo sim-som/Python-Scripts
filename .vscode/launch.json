@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["c:\\Users\\simon\\OneDrive\\Bilder\\Bilder-Masterarbeit\\Talos_L120C\\200916-trehalose-tmv-Gunnars_work\\treh-tmv", "*.mrc"]
+            "args": ["micrographs_ctf.star"]
         }
     ]
 }

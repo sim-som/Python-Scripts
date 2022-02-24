@@ -7,6 +7,8 @@ Created on Tue Jan 12 13:42:36 2021
 
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use("AGG")   # simple backend just for saving
 import read_star  #Eigenes Modul
 from pathlib import Path   #more compatibility between diffrent OS's
 import sys
@@ -26,82 +28,97 @@ file = path.parts[-1]
 assert path.exists()
 assert parent.is_dir()
 path_str = str(path)
-print(path_str)
 assert path_str.endswith("_ctf.star")
 
 #einlesen der .star datei mittels "read_star" modul:
 ctf_data = read_star.read_type_of_data(path_str, "data_micrographs")
-N = len(ctf_data)
 
-data_of_interest = ["rlnCtfAstigmatism", "rlnCtfFigureOfMerit", "rlnCtfMaxResolution", 
+categories = ["rlnCtfAstigmatism", "rlnCtfFigureOfMerit", "rlnCtfMaxResolution", 
                     "rlnDefocusAngle", "rlnDefocusU", "rlnDefocusV"]
-#Einheiten:
-units = dict.fromkeys(data_of_interest)
-units["rlnCtfMaxResolution"] = "$A^°$"
-units["rlnDefocusU"] = "$A^°$"
-units["rlnDefocusV"] = "$A^°$"
+# Define units for the categories:
+units = {
+    "rlnCtfAstigmatism": "A°",      # ??? not sure (TODO)
+    "rlnCtfFigureOfMerit": None,
+    "rlnCtfMaxResolution": "$A°$",
+    "rlnDefocusAngle": "°",
+    "rlnDefocusU": "$µm$",
+    "rlnDefocusV": "$µm$"
+}
+
+
+# Covert defocus values from Angström (10^-10) to micro meter (10^-6):
+ctf_data["rlnDefocusU"] = np.array(ctf_data["rlnDefocusU"]) * 1e-4
+ctf_data["rlnDefocusV"] = np.array(ctf_data["rlnDefocusV"]) * 1e-4
+
+
 
 
 #Plot the data of interest for each micrograph:
 print("Plotting Data vs. micrographs")
-for data in data_of_interest:
-    im_name = f"all_micrographs_{data[3:]}"
+for cat in categories:
+    im_name = f"all_micrographs_{cat[3:]}"
     
-    print(data)
-    x = np.arange(len(ctf_data[data]))
-    y = np.array(ctf_data[data])
+    print(cat)
+    x = np.arange(len(ctf_data[cat]))
+    y = np.array(ctf_data[cat])
     plt.figure(im_name)
     plt.title(parent)
     plt.bar(x, y)
     plt.xlabel("micrograph")
-    y_label = data
-    if units[data]:
-        y_label += f" / {units[data]}"
+    y_label = cat
+    if units[cat]:
+        y_label += f" / {units[cat]}"
     plt.ylabel(y_label)
     
 
-fig, axs = plt.subplots(3,2, sharex=True, figsize = (10,10), num = "ctfestimate_Overview")
+fig, axs = plt.subplots(3,2, sharex=False, figsize = (10,10), num = "ctfestimate_Overview")
+axs = axs.flatten()
 
-print("Overview")
+for i, cat in enumerate(categories):
 
-N = len(data_of_interest)
-for i in range(N):
-    #print("i =", i)
-    
-    data = data_of_interest[i]
-    
-    y = ctf_data[data]
+    y = ctf_data[cat]
     x = np.arange(len(y))
-    
-    if i == 0:
-        row = 0
-    else:
-        row = i // 2
-    #print("row =" ,row)
-    col = i % 2
-    #print("col =" ,col)
-    axs[row, col].bar(x,y)
-    axs[row, col].set_title(data)
+    axs[i].bar(x,y)
+    axs[i].set_title(cat)
+    axs[i].set_xlabel("image #")
+    y_label = cat
+    if units[cat]:
+        y_label += f" / {units[cat]}"
+    axs[i].set_ylabel(y_label)
+
+plt.tight_layout()
 
 
-
-
-    
-
-# Histograms for each number of interest:
+# Histograms for each data of interest:
 print("Plotting histograms")
-for data in data_of_interest:
+for data in categories:
     im_name = f"histogram_{data[3:]}"
     
     plt.figure(im_name)
     plt.title(parent)
-    plt.hist(ctf_data[data], bins = 200)
+    plt.hist(ctf_data[data])
     x_label = data
     if units[data]:
         x_label += f" / {units[data]}"
     plt.xlabel(x_label)
     plt.ylabel("counts")
     
+# Overview of all histograms:
+fig, axs = plt.subplots(3,2, sharey=True, figsize = (10,10), num = "histogram_Overview")
+axs = axs.flatten()
+
+for i, data in enumerate(categories):
+
+    axs[i].hist(ctf_data[data])
+    axs[i].set_title(data)
+    x_label = data
+    if units[data]:
+        x_label += f" / {units[data]}"
+    axs[i].set_xlabel(x_label)
+    axs[i].set_ylabel(f"counts")
+
+plt.tight_layout()
+
 
 
 # Save all figures:
