@@ -58,9 +58,12 @@ print("Plotting Data vs. micrographs")
 for cat in categories:
     im_name = f"all_micrographs_{cat[3:]}"
     
-    print(cat)
     x = np.arange(len(ctf_data[cat]))
     y = np.array(ctf_data[cat])
+
+    print(cat, ":")
+    print(y)
+
     plt.figure(im_name)
     plt.title(parent)
     plt.bar(x, y)
@@ -69,6 +72,8 @@ for cat in categories:
     if units[cat]:
         y_label += f" / {units[cat]}"
     plt.ylabel(y_label)
+
+plt.tight_layout()
     
 
 fig, axs = plt.subplots(3,2, sharex=False, figsize = (10,10), num = "ctfestimate_Overview")
@@ -86,6 +91,7 @@ for i, cat in enumerate(categories):
         y_label += f" / {units[cat]}"
     axs[i].set_ylabel(y_label)
 
+plt.suptitle(str(path.parent))
 plt.tight_layout()
 
 
@@ -102,6 +108,8 @@ for data in categories:
         x_label += f" / {units[data]}"
     plt.xlabel(x_label)
     plt.ylabel("counts")
+
+plt.tight_layout()
     
 # Overview of all histograms:
 fig, axs = plt.subplots(3,2, sharey=True, figsize = (10,10), num = "histogram_Overview")

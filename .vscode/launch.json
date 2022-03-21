@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["micrographs_ctf.star"]
+            "args": ["c:\\Users\\simon\\OneDrive\\Dokumente\\Studium\\Master\\Masterarbeit\\Auswertungen\\Gunnars_Treh_TMV_data_Talos\\CtfFind"]
         }
     ]
 }
