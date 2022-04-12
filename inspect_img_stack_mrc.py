@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from natsort import natsorted
 # %%
 file_p = Path(
-    "/home/simon/jureca_project_mount/Trehalose_gunnar_2/Class2D/job091/run_unmasked_classes.mrcs"
+    "/home/simon/jureca_project_mount/Trehalose_gunnar_2/Class2D/job092/run_unmasked_classes.mrcs"
 )
 assert file_p.exists() and file_p.is_file()
 
@@ -61,4 +61,16 @@ for path in iterations:
     plt.suptitle(str(path))
     plt.tight_layout()
     plt.show()
+# %%
+# plot most recent iteration:
+dir_p = file_p.parent
+iterations = list(dir_p.glob("*it???*.mrcs"))
+iterations = natsorted(iterations)
+
+with mrcfile.open(iterations[-1]) as f:
+        stack = f.data
+
+print(iterations[-1])
+plot_all(stack)
+
 # %%
