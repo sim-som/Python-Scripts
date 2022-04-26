@@ -1,52 +1,35 @@
 #%%
 # imports
 import numpy as np
-import pandas as pd
-import pyem
+import random
+from skimage import io
 import matplotlib.pyplot as plt
 from pathlib import Path
 import mrcfile
  # %%
 # .npy files:
-motion_corr_dir_p = Path(
+dir_p = Path(
     "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J5/motioncorrected"
+)
+thumbnails_dir_p = Path(
+    "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J5/thumbnails"
 )
 # %%
 # print out file content:
-for file in motion_corr_dir_p.glob("*.npy"):
+for file in dir_p.glob("*.npy"):
     print(file.name)
     cs = np.load(file)
     print(cs.shape)
     print(cs)
 
-# %%
-# rigid trajectories:
-rigid_motion_tab = {
-    "micrograph": [],
-    "x_trajectory": [],
-    "y_trajectory": []
-}
-
-for file in motion_corr_dir_p.glob("*rigid*.npy"):
-    #save into dict:
-
-    cs = np.load(file)
-    # discard redundant dimension:
-    cs = cs[0]
-
-    rigid_motion_tab["micrograph"].append(file.name)
-    rigid_motion_tab["x_trajectory"].append(cs[:,0])
-    rigid_motion_tab["y_trajectory"].append(cs[:,1])
-
-rigid_motion_tab["x_trajectory"] = np.array(rigid_motion_tab["x_trajectory"])
-rigid_motion_tab["y_trajectory"] = np.array(rigid_motion_tab["y_trajectory"])
+    break
 
 # %%
 # rigid trajectories:
 rigid_motion = {}
 bending_motion = {}
 
-for traj_file in motion_corr_dir_p.glob("*rigid*.npy"):
+for traj_file in dir_p.glob("*rigid*.npy"):
 
     print(traj_file.name)
 
@@ -59,10 +42,19 @@ for traj_file in motion_corr_dir_p.glob("*rigid*.npy"):
 
 
 # %%
+# Sample random subset and plot trajectories:
+N_sample = 10
+samples = dict(random.sample(list(rigid_motion.items()), N_sample))
 
-for traj_file, traj in rigid_motion.items():
+def get_thumbnail_path(img_key:str) -> Path:
+    ## get image filename from trajectory filename:
+    thumb_corr_img_p = thumbnails_dir_p / Path(img_key.split(".")[0] + ".mrc_thumb_@2x.png")
+    assert thumb_corr_img_p.exists() and thumb_corr_img_p.is_file()
+    return thumb_corr_img_p
 
-    #plot trajectories:
+
+for traj_file, traj in samples.items():
+
     plt.figure(figsize=(18,6))
 
 
@@ -85,15 +77,14 @@ for traj_file, traj in rigid_motion.items():
 
     # plot image:
     ## get image filename from trajectory filename:
-    corr_img_file_p = motion_corr_dir_p / Path(traj_file.split(".")[0] + ".mrc_patch_aligned_doseweighted.mrc")
-    assert corr_img_file_p.exists() and corr_img_file_p.is_file()
-
-    with mrcfile.open(corr_img_file_p) as f:
-        plt.figure()
-        plt.gray()
-        plt.imshow(f.data)
-        plt.title(f"Corrected image {corr_img_file_p.name}")
-        plt.show()
+    thumb_corr_img_p = get_thumbnail_path(traj_file)
+    img = io.imread(thumb_corr_img_p)
+    
+    plt.figure()
+    plt.gray()
+    plt.imshow(img)
+    plt.title(f"Corrected image {thumb_corr_img_p.name}")
+    plt.show()
 
     # break    
 
@@ -150,16 +141,70 @@ plt.show()
 # bending trajectories:
 bending_motion = {}
 
-for traj_file in motion_corr_dir_p.glob("*bending_traj.npy"):
+for traj_file in dir_p.glob("*bending_traj.npy"):
 
-    print(traj_file.name)
+    # print(traj_file.name)
 
     raw_data = np.load(traj_file)
-    print(raw_data)
+
+    # x-component and y components of vector field:
+    U = raw_data[0, 1, :, :]
+    V = raw_data[1, 1, :, :]
+
+    # print("x component:")
+    # print(X)
+    # print("y component:")
+    # print(Y)
     
     # save into dict:
-    # rigid_motion[traj_file.name] = raw_data
+    bending_motion[traj_file.name] = (U, V)
 
-    break
+# %%
+# Sample random subset and plot:
+N_sample = 10
+samples = dict(random.sample(list(bending_motion.items()), N_sample))
+XXXoutfileXXX
+for key, val in samples.items():
 
+    # vector components:
+    U = val[0]
+    V = val[1]
+
+    thumb = io.imread(get_thumbnail_path(key))
+
+    # coordinates in the thumbnail:
+    y = np.linspace(0, thumb.shape[0], U.shape[0])
+    x = np.linspace(0, thumb.shape[1], U.shape[1])
+
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    
+    plt.figure(figsize=(12,18))
+    plt.subplot(211)
+    plt.imshow(thumb)
+    plt.title("Image thumbnail")
+    # plt.quiver(X, Y, U, V)
+
+    plt.subplot(212)
+    plt.quiver(U, V, color = "tab:red")
+    plt.title("Bending patch motion")
+
+    plt.suptitle(key)
+    plt.show()
+
+# %%
+example_img_file = "FoilHole_15359488_Data_15372558_15372560_20211015_181243_fractions.mrc"
+for key, val in bending_motion.items():
+    if example_img_file in key:
+        # get vector components
+        U = val[0]
+        V = val[1]
+        # read motion corrected image:
+        with mrcfile.open(dir_p / Path(example_img_file)) as f:
+            img = f.data
+        
+        plt.figure()
+        plt.imshow(img)
+        plt.quiver(U, V)
+        plt.title(key)
+        plt.show()
 # %%

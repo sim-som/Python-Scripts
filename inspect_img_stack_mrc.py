@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from natsort import natsorted
 # %%
 file_p = Path(
-    "/home/simon/jureca_project_mount/Trehalose_gunnar_2/Class2D/job092/run_unmasked_classes.mrcs"
+    "/home/simon/jureca_scratch_mount/Trehalose_gunnar_2/Class2D/job122/run_it025_classes.mrcs"
 )
 assert file_p.exists() and file_p.is_file()
 
