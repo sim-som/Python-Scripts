@@ -1,9 +1,4 @@
 #%%
-docu = """
-    Get/Show the particles of a given class in the micrographs:
-"""
-
-#%%
 # imports
 import numpy as np
 from pathlib import Path
@@ -11,19 +6,19 @@ from matplotlib import pyplot as plt
 from natsort import natsorted
 import pandas as pd
 from matplotlib import patches
+import argparse
 
 from starparser import fileparser
 import mrcfile
 # %%
+# file/directory management:
 data_star_file_p = Path(
     "/home/simon/jureca_scratch_mount/Trehalose_gunnar_2/Class2D/job135/run_it025_data.star"
 )
 assert data_star_file_p.exists() and data_star_file_p.is_file()
 job_dir_p = data_star_file_p.parent
 assert len(job_dir_p.name) == 6 and job_dir_p.name[:3] == "job"
-project_dir_p = Path(
-    "/home/simon/jureca_scratch_mount/Trehalose_gunnar_2"
-)
+project_dir_p = job_dir_p.parents[1]
 assert project_dir_p.exists() and project_dir_p.is_dir()
 img_stack_file_p = job_dir_p / Path(data_star_file_p.name[:-10] + "_classes.mrcs")
 assert img_stack_file_p.exists() and img_stack_file_p.is_file()
@@ -48,6 +43,7 @@ with mrcfile.open(img_stack_file_p) as f:
 TMV_width = 180 / angpix
 
 # %%
+# show all classes
 
 def plot_all(images):
     N = images.shape[0]
@@ -67,14 +63,20 @@ def plot_all(images):
     fig.suptitle("2D classes")
     plt.tight_layout()
     
-
-
 plot_all(stack)
 # %%
 # ID of the class of interest (Get this from the relion gui or the plot above):
 class_id = 28
 
 class_particles = particles[particles["_rlnClassNumber"] == class_id]
+N_part = len(class_particles)
+
+# %%
+# Show selected class:
+plt.figure()
+plt.imshow(stack[class_id - 1, :, :])   # watch out class IDs start at 1!
+plt.title(f"Class {class_id} of {job_dir_p}")
+plt.xlabel(f"Nr. particles {N_part}")
 
 # %%
 # plot micrographs together with particles of selected class:
