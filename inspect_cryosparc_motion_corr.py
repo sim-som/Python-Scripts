@@ -1,11 +1,13 @@
 #%%
 # imports
-import numpy as np
 import random
-from skimage import io
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import mrcfile
+import numpy as np
+from skimage import io
+
  # %%
 # .npy files:
 dir_p = Path(
@@ -27,11 +29,10 @@ for file in dir_p.glob("*.npy"):
 # %%
 # rigid trajectories:
 rigid_motion = {}
-bending_motion = {}
 
 for traj_file in dir_p.glob("*rigid*.npy"):
 
-    print(traj_file.name)
+    # print(traj_file.name)
 
     raw_data = np.load(traj_file)
     # discard redundant dimension:
@@ -110,31 +111,27 @@ def sum_of_traveled_dist(x_traj:np.array, y_traj:np.array):
     return dist.sum()
 
 test_x, test_y = list(rigid_motion.values())[0][:,0], list(rigid_motion.values())[0][:,1]
-sum_dist = sum_of_traveled_dist(test_x, test_y)
+sum_rigid_dist = sum_of_traveled_dist(test_x, test_y)
         
 # %%
 # for all images:
-sum_dist = []
-for traj_file, traj in rigid_motion.items():
-
-    sum_dist.append(sum_of_traveled_dist(traj[:,0], traj[:,1]))
+sum_rigid_dist = {key:sum_of_traveled_dist(traj[:,0], traj[:,1]) for key, traj in rigid_motion.items()}
 
 
-# %%
 # plot sum dist for each image:
 plt.figure(figsize=(12,6))
 
 plt.subplot(121)
-plt.plot(sum_dist)
+plt.plot(sum_rigid_dist.values())
 plt.xlabel("Image ID")
 plt.ylabel("overall drift")
 
 plt.subplot(122)
-plt.hist(sum_dist, bins="auto")
+plt.hist(sum_rigid_dist.values(), bins="auto")
 plt.xlabel("overall drift")
 plt.ylabel("counts")
 
-plt.suptitle("Total rigid drift during Acquisition as estimated by cryoSPARC")
+plt.suptitle("Total rigid drift during Acquisition as estimated by cryoSPARC®")
 
 plt.show()
 # %%
@@ -148,8 +145,8 @@ for traj_file in dir_p.glob("*bending_traj.npy"):
     raw_data = np.load(traj_file)
 
     # x-component and y components of vector field:
-    U = raw_data[0, 1, :, :]
-    V = raw_data[1, 1, :, :]
+    u = raw_data[0, 1, :, :]
+    v = raw_data[1, 1, :, :]
 
     # print("x component:")
     # print(X)
@@ -157,24 +154,30 @@ for traj_file in dir_p.glob("*bending_traj.npy"):
     # print(Y)
     
     # save into dict:
-    bending_motion[traj_file.name] = (U, V)
+    bending_motion[traj_file.name] = (u, v)
 
 # %%
-# Sample random subset and plot:
+# Sample random subset and plot motion of patches:
+
+from matplotlib import cm
+from matplotlib.colors import Normalize
+
 N_sample = 10
 samples = dict(random.sample(list(bending_motion.items()), N_sample))
-XXXoutfileXXX
+
+scale = None
+
 for key, val in samples.items():
 
     # vector components:
-    U = val[0]
-    V = val[1]
+    u = val[0]  
+    v = val[1]
 
     thumb = io.imread(get_thumbnail_path(key))
 
     # coordinates in the thumbnail:
-    y = np.linspace(0, thumb.shape[0], U.shape[0])
-    x = np.linspace(0, thumb.shape[1], U.shape[1])
+    y = np.linspace(0, thumb.shape[0], u.shape[0])
+    x = np.linspace(0, thumb.shape[1], u.shape[1])
 
     X, Y = np.meshgrid(x, y, indexing="ij")
     
@@ -184,27 +187,56 @@ for key, val in samples.items():
     plt.title("Image thumbnail")
     # plt.quiver(X, Y, U, V)
 
+    colors = np.sqrt(u**2 + v**2)
+    colormap = cm.viridis
+    
+    norm = Normalize()
+    norm.autoscale(colors)
+
     plt.subplot(212)
-    plt.quiver(U, V, color = "tab:red")
+    Q = plt.quiver(u, v, colors, cmap="viridis", scale=scale)
     plt.title("Bending patch motion")
+    plt.colorbar()
+
+    # apply the scale of the first plot to each of the following plots:
+    if scale == None:
+        print("Hello")
+        scale = Q.scale
 
     plt.suptitle(key)
     plt.show()
 
+
 # %%
-example_img_file = "FoilHole_15359488_Data_15372558_15372560_20211015_181243_fractions.mrc"
-for key, val in bending_motion.items():
-    if example_img_file in key:
-        # get vector components
-        U = val[0]
-        V = val[1]
-        # read motion corrected image:
-        with mrcfile.open(dir_p / Path(example_img_file)) as f:
-            img = f.data
-        
-        plt.figure()
-        plt.imshow(img)
-        plt.quiver(U, V)
-        plt.title(key)
-        plt.show()
 # %%
+# calculate mean absolute bending velocity of each patch
+
+def mean_absolute_bending_velocity(u, v):
+    """Calculate the mean absolute bending velocity from all patches of one image/movie.
+
+    Args:
+        u (vector): x-components of bending velocity
+        v (vector): y-components of bending velocity
+    """
+    assert len(u) == len(v)
+
+    return np.sqrt(u**2 + v**2).mean()
+    
+mean_bend_vel_dict = {key:mean_absolute_bending_velocity(val[0], val[1]) for (key, val) in bending_motion.items()} 
+
+# plot histogram:
+plt.figure(figsize=(12,6))
+plt.suptitle("Total bending motion during Acquisition as estimated by cryoSPARC®")
+
+plt.subplot(121)
+plt.plot(mean_bend_vel_dict.values())
+plt.xlabel("Image ID")
+plt.ylabel("Mean bending motion")
+
+plt.subplot(122)
+plt.hist(mean_bend_vel_dict.values(), bins="auto")
+plt.xlabel("Mean bending motion")
+plt.ylabel("Counts")
+
+plt.show()
+

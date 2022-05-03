@@ -8,7 +8,7 @@ from natsort import natsorted
 # %%
 # example file:
 file_p = Path(
-    "/home/simon/jureca_project_mount/Trehalose_gunnar_2/Refine3D/job098/run_it007_half1_class001.mrc"
+    "/home/simon/jureca_scratch_mount/Trehalose_gunnar_2/Class3D/job144/run_it025_class001.mrc"
     )
 assert file_p.exists() and file_p.is_file()
 # directory:
@@ -43,13 +43,6 @@ for it_p in iterations:
     plt.imshow(map[50])
     plt.show()
 
-
-# %%
-# Save slice of last map as tiff image
-from skimage import io
-slice = map[50]
-
-plt.imshow(slice)
 
 # %%
 # write 2D slice to .mrc
