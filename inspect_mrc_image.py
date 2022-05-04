@@ -16,7 +16,7 @@ assert mrc_file_p.exists() and mrc_file_p.is_file()
 # read the image data into numpy array and the pixel size
 with mrcfile.open(mrc_file_p) as f:
     img:np.ndarray = f.data
-    angpix = f.voxel_size.x
+    angpix = float(f.voxel_size.x)
     
 # %%
 img = filters.median(img)   # simple denoise
@@ -46,8 +46,12 @@ fourier_image = fft.fftn(img_quad)
 # absolute values of the complex amplidudes:
 fourier_amplitudes = np.abs(fourier_image)**2
 plt.imshow(np.log(fourier_amplitudes))
+
+# %%
+# spatial frequency / wave vector k
+
 # get the corresponding values for the wave vector k
-# multiplying by npix gives k in pixel frequency:
+# multiplying by npix gives k in pixel frequency (unit: 1/px bzw. px^-1):
 kfreq = fft.fftfreq(npix) * npix
 # convert into 2D array:
 kfreq2D = np.meshgrid(kfreq, kfreq)
@@ -65,7 +69,7 @@ fourier_amplitudes = fourier_amplitudes.flatten()
 # kbins contains start and end points of all bins:
 kbins = np.arange(0.5, npix//2 + 1, 1.)
 # k values are the mid points of the bins:
-kval = 0.5 * (kbins[1:] + kbins[:-1])
+kvals = 0.5 * (kbins[1:] + kbins[:-1])
 
 # %%
 # average radial amplitude (i.e. the power spectrum):
@@ -78,12 +82,37 @@ Abins, _, _ = stats.binned_statistic(
     bins=kbins
 )
 # multiply by volume of sperical shell defined by the bins (for 2D this is a surface area)
-# Abins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+# Without multiplying the spectrum looks less "weird" and more similar to EMAN2 plot
+# Abins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J49/cryosparc_P20_J49_templates.mrc
+
+def one_over(x):
+    """Vectorized 1/x, treating x==0 manually"""
+    x = np.array(x).astype(float)
+    near_zero = np.isclose(x, 0)
+    x[near_zero] = np.inf
+    x[~near_zero] = 1 / x[~near_zero]
+    return x
+
+# corresponding lengthscale
+xvals = one_over(kvals_ang)
 
 # %%
 # plot the powerspectrum
-plt.figure()
-plt.plot(np.log(Abins))
+plt.figure(figsize=(12,6))
+plt.semilogy(kvals_ang, Abins)
+plt.xlabel("spatial frequency $k$ [1/Å]")
+plt.ylabel("$P(k)$")
+plt.title("Power spectrum")
+
+# plt.xlim([kvals_ang.min(), kvals_ang.max()])
+
+# setting up a secondary axis (see https://matplotlib.org/stable/gallery/subplots_axes_and_figures/secondary_axis.html):
+
+
+ax = plt.gca()
+secax = ax.secondary_xaxis("top", functions = (one_over, one_over))
+secax.set_xlabel("length scale [Å]")
+
 plt.show()
 
 # %%
