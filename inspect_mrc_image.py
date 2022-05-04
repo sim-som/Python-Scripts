@@ -17,23 +17,30 @@ assert mrc_file_p.exists() and mrc_file_p.is_file()
 with mrcfile.open(mrc_file_p) as f:
     img:np.ndarray = f.data
     angpix = float(f.voxel_size.x)
-    
+
+
 # %%
-img = filters.median(img)   # simple denoise
+# img = filters.median(img)   # simple denoise
 img = exposure.rescale_intensity(img) # rescaling float values so that min=-1.0 and max=+1.0
-# %%
-plt.imshow(img, cmap="gray")
+
 
 # %%
 # crop the image to quadratic shape
 shape_max = max(list(img.shape))
+# %%
 shape_min = min(list(img.shape))
 diff = shape_max - shape_min
 
 img_quad = img[:, diff//2 : shape_max - diff//2]
 
-plt.imshow(img_quad, cmap="gray")
 
+plt.figure(figsize=(12,6))
+plt.subplot(121)
+plt.imshow(filters.median(img), cmap="gray")
+
+plt.subplot(122)
+plt.imshow(filters.median(img_quad), cmap="gray")
+plt.show()
 
 # %%
 # Calculate the power spectrum 
@@ -85,6 +92,9 @@ Abins, _, _ = stats.binned_statistic(
 # Without multiplying the spectrum looks less "weird" and more similar to EMAN2 plot
 # Abins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J49/cryosparc_P20_J49_templates.mrc
 
+#%%
+kvals_ang = kvals / (npix * angpix)
+
 def one_over(x):
     """Vectorized 1/x, treating x==0 manually"""
     x = np.array(x).astype(float)
@@ -99,7 +109,44 @@ xvals = one_over(kvals_ang)
 # %%
 # plot the powerspectrum
 plt.figure(figsize=(12,6))
+plt.plot(kvals_ang, Abins)
+plt.xlabel("spatial frequency $k$ [1/Å]")
+plt.ylabel("$P(k)$")
+plt.title("Power spectrum")
+
+# plt.xlim([kvals_ang.min(), kvals_ang.max()])
+
+# setting up a secondary axis (see https://matplotlib.org/stable/gallery/subplots_axes_and_figures/secondary_axis.html):
+
+
+ax = plt.gca()
+secax = ax.secondary_xaxis("top", functions = (one_over, one_over))
+secax.set_xlabel("length scale [Å]")
+
+plt.show()
+
+# %%
+# plot the powerspectrum
+plt.figure(figsize=(12,6))
 plt.semilogy(kvals_ang, Abins)
+plt.xlabel("spatial frequency $k$ [1/Å]")
+plt.ylabel("$P(k)$")
+plt.title("Power spectrum")
+
+# plt.xlim([kvals_ang.min(), kvals_ang.max()])
+
+# setting up a secondary axis (see https://matplotlib.org/stable/gallery/subplots_axes_and_figures/secondary_axis.html):
+
+
+ax = plt.gca()
+secax = ax.secondary_xaxis("top", functions = (one_over, one_over))
+secax.set_xlabel("length scale [Å]")
+
+plt.show()
+# %%
+# plot the powerspectrum
+plt.figure(figsize=(12,6))
+plt.loglog(kvals_ang, Abins)
 plt.xlabel("spatial frequency $k$ [1/Å]")
 plt.ylabel("$P(k)$")
 plt.title("Power spectrum")
