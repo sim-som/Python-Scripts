@@ -36,40 +36,54 @@ plt.imshow(img_quad, cmap="gray")
 
 
 # %%
-# Calculate the power spectrum
+# Calculate the power spectrum 
+# (heavily inspired by https://bertvandenbroucke.netlify.app/2019/05/24/computing-a-power-spectrum-in-python/)
 
-# take the fourier transform of the image
-F = fft.fft2(img_quad)
-# shift the quadrants around so that low
-# spatial freqs. are in the center of the 2D fourier transformed image
-F = fft.fftshift(F)
-ps_2d = np.abs(F)**2
+npix = img_quad.shape[0]
 
-#%%
-plt.imshow(np.log(ps_2d), cmap="gray")
+# complex fourier transform of the image:
+fourier_image = fft.fftn(img_quad)
+# absolute values of the complex amplidudes:
+fourier_amplitudes = np.abs(fourier_image)**2
+plt.imshow(np.log(fourier_amplitudes))
+# get the corresponding values for the wave vector k
+# multiplying by npix gives k in pixel frequency:
+kfreq = fft.fftfreq(npix) * npix
+# convert into 2D array:
+kfreq2D = np.meshgrid(kfreq, kfreq)
+# calculate the absolute value (or norm) for each (kx, ky) in kfreq2D:
+knrm = knrm = np.sqrt(kfreq2D[0]**2 + kfreq2D[1]**2)
+
 # %%
-# calculate the radial profile:
+# binning
 
-def radial_profile(data, center = None):
+#flatten the 2 dim arrays to 1D:
+knrm = knrm.flatten()
+fourier_amplitudes = fourier_amplitudes.flatten()
 
-    if center == None:
-        center = np.array(data.shape) // 2
-    
-    y, x = np.indices(data.shape)
+# set up wave number bins to bin amplitudes in kspace
+# kbins contains start and end points of all bins:
+kbins = np.arange(0.5, npix//2 + 1, 1.)
+# k values are the mid points of the bins:
+kval = 0.5 * (kbins[1:] + kbins[:-1])
 
-    y_center, x_center = center
-
-    # calculate radial distances:
-    r = np.sqrt( (x-x_center)**2 + (y - y_center)**2)
-    r = r.astype(int)
-    
-    tbin = np.bincount(r.ravel(), data.ravel())
-    nr = np.bincount(r.ravel())
-    radialprofile = tbin / nr
-    return radialprofile
-
-ps_1d = radial_profile(ps_2d)
 # %%
-plt.loglog(ps_1d)
+# average radial amplitude (i.e. the power spectrum):
+
+#calculate the average fourier amplitude for each bin:
+from scipy import stats
+Abins, _, _ = stats.binned_statistic(
+    knrm, fourier_amplitudes,
+    statistic="mean",
+    bins=kbins
+)
+# multiply by volume of sperical shell defined by the bins (for 2D this is a surface area)
+# Abins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+
+# %%
+# plot the powerspectrum
+plt.figure()
+plt.plot(np.log(Abins))
+plt.show()
 
 # %%
