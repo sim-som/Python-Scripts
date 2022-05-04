@@ -2,7 +2,7 @@
 # imports
 import random
 from pathlib import Path
-
+import pandas as pd
 import matplotlib.pyplot as plt
 import mrcfile
 import numpy as np
@@ -11,14 +11,18 @@ from skimage import io
  # %%
 # .npy files:
 dir_p = Path(
-    "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J5/motioncorrected"
+    "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J88/motioncorrected"
 )
+assert dir_p.exists() and dir_p.is_dir()
+
 thumbnails_dir_p = Path(
-    "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J5/thumbnails"
+    "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J88/thumbnails"
 )
+assert thumbnails_dir_p.exists() and thumbnails_dir_p.is_dir()
+
 # %%
-# print out file content:
-for file in dir_p.glob("*.npy"):
+# print out files content:
+for file in dir_p.glob("*_traj.npy"):
     print(file.name)
     cs = np.load(file)
     print(cs.shape)
@@ -43,7 +47,7 @@ for traj_file in dir_p.glob("*rigid*.npy"):
 
 
 # %%
-# Sample random subset and plot trajectories:
+# Sample random subset and plot rigid trajectories:
 N_sample = 10
 samples = dict(random.sample(list(rigid_motion.items()), N_sample))
 
@@ -149,12 +153,15 @@ for traj_file in dir_p.glob("*bending_traj.npy"):
     v = raw_data[1, 1, :, :]
 
     # print("x component:")
-    # print(X)
-    # print("y component:")
-    # print(Y)
-    
+    # print(X)exposure.rescale_intensity(img)
     # save into dict:
     bending_motion[traj_file.name] = (u, v)
+
+# Also write into dataframe:
+bending_df = {
+    "key": [k for k in bending_motion.keys()],
+    "motion": [v for v in bending_motion.values()]
+}
 
 # %%
 # Sample random subset and plot motion of patches:
@@ -222,21 +229,89 @@ def mean_absolute_bending_velocity(u, v):
 
     return np.sqrt(u**2 + v**2).mean()
     
-mean_bend_vel_dict = {key:mean_absolute_bending_velocity(val[0], val[1]) for (key, val) in bending_motion.items()} 
+mean_bend_motion_dict = {key:mean_absolute_bending_velocity(val[0], val[1]) for (key, val) in bending_motion.items()} 
 
 # plot histogram:
 plt.figure(figsize=(12,6))
 plt.suptitle("Total bending motion during Acquisition as estimated by cryoSPARC®")
 
 plt.subplot(121)
-plt.plot(mean_bend_vel_dict.values())
+plt.plot(mean_bend_motion_dict.values())
 plt.xlabel("Image ID")
 plt.ylabel("Mean bending motion")
 
 plt.subplot(122)
-plt.hist(mean_bend_vel_dict.values(), bins="auto")
+plt.hist(mean_bend_motion_dict.values(), bins="auto")
 plt.xlabel("Mean bending motion")
 plt.ylabel("Counts")
 
 plt.show()
 
+
+# %%
+# Get micrographs under certain motion threshold:
+
+# convert data to dictionary format
+mean_bend_motion_df = {
+    "key": [k for k in mean_bend_motion_dict.keys()],
+    "bend_motion": [v for v in mean_bend_motion_dict.values()]
+}
+mean_bend_motion_df = pd.DataFrame(mean_bend_motion_df)
+# %%
+# Show slow micrographs:
+bend_mot_thresh = 13
+
+images_keys = mean_bend_motion_df[mean_bend_motion_df["bend_motion"] < bend_mot_thresh]["key"]
+thumbnail_paths = [get_thumbnail_path(item) for item in images_keys]
+
+for p in thumbnail_paths:
+    thumb = io.imread(p)
+
+    plt.figure()
+    plt.imshow(thumb)
+    plt.show()
+
+# %%
+# Rest of the micrographs:
+relevant_bend_motion_df = mean_bend_motion_df[mean_bend_motion_df["bend_motion"] > bend_mot_thresh]
+
+plt.figure(figsize=(12,6))
+plt.suptitle("Total bending motion relevant images")
+
+plt.subplot(121)
+plt.plot(relevant_bend_motion_df["bend_motion"])
+plt.xlabel("Image ID")
+plt.ylabel("Mean bending motion")
+
+plt.subplot(122)
+plt.hist(relevant_bend_motion_df["bend_motion"], bins="auto")
+plt.xlabel("Mean bending motion")
+plt.ylabel("Counts")
+
+plt.show()
+
+# %%
+# Inspect longer tail:
+ths = 50
+
+images_keys = relevant_bend_motion_df[relevant_bend_motion_df["bend_motion"] > 50]["key"]
+thumbnail_paths = [get_thumbnail_path(item) for item in images_keys]
+
+for p in random.sample(thumbnail_paths, 20):
+    thumb = io.imread(p)
+
+    plt.figure()
+    plt.imshow(thumb)
+    plt.show()
+# %%
+# Inspect bulk:
+images_keys = relevant_bend_motion_df[relevant_bend_motion_df["bend_motion"] < 50]["key"]
+
+for key in random.sample(list(images_keys), 20):
+    thumb = io.imread(get_thumbnail_path(key))
+
+    plt.figure()
+    plt.imshow(thumb)
+    plt.show()
+
+# %%
