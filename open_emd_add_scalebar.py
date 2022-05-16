@@ -16,21 +16,17 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument("emd_file_str", help="The path of the .emd file")
+parser.add_argument("--color", help="The color of the scalebar", default="black", type=str)
+parser.add_argument("--box_alpha", help="Transparency of the box around the scalebar (range: [0.0, 1.0])",
+                    default=0.0, type=float)
+parser.add_argument("--verbose", action="store_true")
+
 args = parser.parse_args()
 emd_file_p = Path(args.emd_file_str)
 # Load the image data via hyperspy :
 img_signal = hs.load(emd_file_p)
 
-img_signal.plot()
-
-# %%
-# Save in another format
-# save as tiff:
-# img.save("example.tiff")
-# save as png:
-# img_signal.save("example.png")
-# save as jpeg:
-# img.save("example.jpeg")
+# img_signal.plot()
 # %%
 # Get the image data as a numpy array:
 img = img_signal.data
@@ -61,7 +57,7 @@ px_size = get_px_size(metadata)
 from skimage.filters import median
 img_proc = median(img)
 
-plt.figure(figsize=(12,6))
+plt.figure(emd_file_p.name ,figsize=(12,6))
 
 plt.subplot(121)
 plt.imshow(img, cmap="gray")
@@ -71,7 +67,8 @@ plt.subplot(122)
 plt.imshow(img_proc, cmap="gray")
 plt.title("median filterd image")
 
-plt.show()
+if args.verbose:
+    plt.show()
 
 # %%
 # Plot image with scalebar:
@@ -86,16 +83,17 @@ ax.imshow(img_proc, cmap="gray")
 # Create scale bar
 scalebar = ScaleBar(
     px_size,
-    units = "m", 
+    units = "m",
+    color=args.color,
     length_fraction = 0.2,
     location="lower left",
-    box_alpha=0.0
+    box_alpha=args.box_alpha
 
 )
 ax.add_artist(scalebar)
 
-# Show
-plt.show()
+if args.verbose:
+    plt.show()
 
 # %%
 # Save the figure of the image together with the scalebar as .png
