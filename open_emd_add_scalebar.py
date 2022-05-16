@@ -1,14 +1,12 @@
 #%%
 # imports
-from hyperspy import api as hs
-import hyperspy
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib_scalebar.scalebar import ScaleBar
 import argparse
 
 # %%
-# Path to image file
+# Argument parsing:
 parser = argparse.ArgumentParser(
     description="""
         Read in .emd files via hyperspy module add a salebar and save figure of image and overlaid scalebar as .png
@@ -20,8 +18,13 @@ parser.add_argument("--color", help="The color of the scalebar", default="black"
 parser.add_argument("--box_alpha", help="Transparency of the box around the scalebar (range: [0.0, 1.0])",
                     default=0.0, type=float)
 parser.add_argument("--verbose", action="store_true")
-
 args = parser.parse_args()
+assert args.box_alpha >= 0.0 and args.box_alpha <= 1.0
+
+# Path to image file
+from hyperspy import api as hs
+import hyperspy
+
 emd_file_p = Path(args.emd_file_str)
 # Load the image data via hyperspy :
 img_signal = hs.load(emd_file_p)
