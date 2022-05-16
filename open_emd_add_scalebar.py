@@ -88,7 +88,7 @@ scalebar = ScaleBar(
     px_size,
     units = "m",
     color=args.color,
-    length_fraction = 0.2,
+    # length_fraction = 0.2,
     location="lower left",
     box_alpha=args.box_alpha
 

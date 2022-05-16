@@ -99,3 +99,13 @@ fig.savefig(
     pad_inches = 0
 )
 # %%
+# open all .emd files in one folder
+emd_dir_p = Path("C:/Users/simon/OneDrive/Desktop")
+assert emd_dir_p.exists() and emd_dir_p.is_dir()
+
+img_signals_list = hs.load(emd_dir_p.glob("*.emd"))
+
+# %%
+for s in img_signals_list:
+    s.plot()
+# %%
