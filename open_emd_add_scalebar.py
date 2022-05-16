@@ -5,10 +5,20 @@ import hyperspy
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib_scalebar.scalebar import ScaleBar
+import argparse
 
 # %%
+# Path to image file
+parser = argparse.ArgumentParser(
+    description="""
+        Read in .emd files via hyperspy module add a salebar and save figure of image and overlaid scalebar as .png
+    """
+)
+
+parser.add_argument("emd_file_str", help="The path of the .emd file")
+args = parser.parse_args()
+emd_file_p = Path(args.emd_file_str)
 # Load the image data via hyperspy :
-emd_file_p = Path("C:/Users/simon/OneDrive/Desktop/B2-Empty_glow_dis_quantifoil 20220127 1313 6700 x.emd")
 img_signal = hs.load(emd_file_p)
 
 img_signal.plot()
