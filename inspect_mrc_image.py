@@ -4,8 +4,10 @@ import mrcfile
 import numpy as np
 from numpy import fft
 from matplotlib import pyplot as plt
+from matplotlib import colors
 from pathlib import Path
 from skimage import io, util, exposure, filters
+
 # %%
 mrc_file_p = Path(
     "/home/simon/gpu-rechner_u3_mount/cryoSPARC_projects/P20/J88/motioncorrected/013361838351298364391_FoilHole_15362370_Data_15372558_15372560_20211015_235110_fractions.mrc_patch_aligned_doseweighted.mrc"
@@ -40,6 +42,9 @@ plt.imshow(filters.median(img), cmap="gray")
 
 plt.subplot(122)
 plt.imshow(filters.median(img_quad), cmap="gray")
+
+plt.suptitle("Image (median filtered)")
+
 plt.show()
 
 # %%
@@ -52,13 +57,14 @@ npix = img_quad.shape[0]
 fourier_image = fft.fftn(img_quad)
 # absolute values of the complex amplidudes:
 fourier_amplitudes = np.abs(fourier_image)**2
-plt.imshow(np.log(fourier_amplitudes))
+
+plt.figure(figsize=(10,10))
+plt.imshow(fourier_amplitudes, norm=colors.LogNorm())
+plt.colorbar()
+plt.show()
 
 # %%
-# spatial frequency / wave vector k
-
-# get the corresponding values for the wave vector k
-# multiplying by npix gives k in pixel frequency (unit: 1/px bzw. px^-1):
+# spatial frequency / wave vector k, cmap = "gray", :
 kfreq = fft.fftfreq(npix) * npix
 # convert into 2D array:
 kfreq2D = np.meshgrid(kfreq, kfreq)
