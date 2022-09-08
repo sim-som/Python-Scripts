@@ -66,7 +66,7 @@ for cat in categories:
 
     plt.figure(im_name)
     plt.title(parent)
-    plt.bar(x, y)
+    plt.scatter(x, y)
     plt.xlabel("micrograph")
     y_label = cat
     if units[cat]:
@@ -83,7 +83,7 @@ for i, cat in enumerate(categories):
 
     y = ctf_data[cat]
     x = np.arange(len(y))
-    axs[i].bar(x,y)
+    axs[i].scatter(x,y)
     axs[i].set_title(cat)
     axs[i].set_xlabel("image #")
     y_label = cat
