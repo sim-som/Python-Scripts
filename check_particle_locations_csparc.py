@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pandas import DataFrame
 from pathlib import Path
+import mrcfile
+import random
 # %%
-particle_location_cs_file = Path(r"C:\Users\simon\Downloads\P23_J73_passthrough_particles_selected.cs")
+particle_location_cs_file = Path(r"/u3/data/simon/cryoSPARC_projects/P23/J73/P23_J73_passthrough_particles_selected.cs")
 particle_data_raw = np.load(particle_location_cs_file)
 # %%
 particle_example = particle_data_raw[0]
@@ -53,16 +55,64 @@ def correct_image_path(img_path_np_bytes):
 exmpl_mic_path = particle_locations["location/micrograph_path"][0]
 print(correct_image_path(exmpl_mic_path))
 
+
 # %%
 # apply to the whole column:
 particle_locations["location/micrograph_path"] = particle_locations["location/micrograph_path"].apply(correct_image_path)
-
 particle_locations
-
+# %%
+# Add micrograph file name column:
+particle_locations["micrograph_file"] = [path.name for path in particle_locations["location/micrograph_path"]]
+particle_locations
 #%%
 MICROGRAPH_SHAPE = particle_locations["location/micrograph_shape"][0]
+PX_SIZE = 0.8
 #%%
 particle_locations["center_x_pix"] = np.around(particle_locations["location/center_x_frac"] * MICROGRAPH_SHAPE[1], 0).astype(int)
 particle_locations["center_y_pix"] = np.around(particle_locations["location/center_y_frac"] * MICROGRAPH_SHAPE[0], 0).astype(int)
+particle_locations
+# %%
+# Check particle locations in images:
+
+image_dir = Path("/u3/data/simon/20220307_GPCR_nanodisk_Simon/20220307_GPCR_nanodisk_Simon/average/")
 
 # %%
+image_files =  list(image_dir.glob("*.mrc"))
+
+# %%
+# read image data:
+def read_image_data_from_mrc_file(file):
+
+    with mrcfile.open(file) as mrc:
+        img_data = mrc.data
+    
+    return img_data
+
+test_img_file = random.sample(image_files, 1)[0]
+test_img = read_image_data_from_mrc_file(test_img_file)
+
+plt.imshow(test_img, cmap="gray")
+plt.title("Test image")
+
+
+# %%
+# Given image name, plot image with annotated particles:
+
+def plot_image_with_particles(image_file:str, particle_locations_df:DataFrame):
+
+    belongs_to_image = particle_locations_df["micrograph_file"] == image_file
+    per_image_sub_df = particle_locations_df[belongs_to_image]
+
+
+
+    for x, y, radius in zip(particle_locations_df["center_x_pix"], particle_locations_df["center_y_pix"], particle_locations_df["location/min_dist_A"]):
+
+        print(x,y,radius/PX_SIZE)
+        #TODO
+
+
+
+test_img_file = random.sample(image_files, 1)[0]
+
+plot_image_with_particles(test_img_file.name, particle_locations)
+
