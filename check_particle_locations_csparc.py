@@ -1,6 +1,7 @@
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import pandas as pd
 from pandas import DataFrame
 from pathlib import Path
@@ -66,7 +67,6 @@ particle_locations["micrograph_file"] = [path.name for path in particle_location
 particle_locations
 #%%
 MICROGRAPH_SHAPE = particle_locations["location/micrograph_shape"][0]
-PX_SIZE = 0.8
 #%%
 particle_locations["center_x_pix"] = np.around(particle_locations["location/center_x_frac"] * MICROGRAPH_SHAPE[1], 0).astype(int)
 particle_locations["center_y_pix"] = np.around(particle_locations["location/center_y_frac"] * MICROGRAPH_SHAPE[0], 0).astype(int)
@@ -81,12 +81,13 @@ image_files =  list(image_dir.glob("*.mrc"))
 
 # %%
 # read image data:
-def read_image_data_from_mrc_file(file):
+def read_image_data_from_mrc_file(file_p):
 
-    with mrcfile.open(file) as mrc:
+    with mrcfile.open(file_p) as mrc:
         img_data = mrc.data
+        px_size = mrc.voxel_size.x
     
-    return img_data
+    return img_data, px_size
 
 test_img_file = random.sample(image_files, 1)[0]
 test_img = read_image_data_from_mrc_file(test_img_file)
@@ -98,21 +99,31 @@ plt.title("Test image")
 # %%
 # Given image name, plot image with annotated particles:
 
-def plot_image_with_particles(image_file:str, particle_locations_df:DataFrame):
+def plot_image_with_particles(image_file_p:Path, particle_locations_df:DataFrame):
 
-    belongs_to_image = particle_locations_df["micrograph_file"] == image_file
+    belongs_to_image = particle_locations_df["micrograph_file"] == image_file_p.name
     per_image_sub_df = particle_locations_df[belongs_to_image]
 
+    img, PX_SIZE_ANG = read_image_data_from_mrc_file(image_file_p)
+    
+    fig, axes = plt.subplots()
+    axes.imshow(img)
+
+    for x, y, radius in zip(per_image_sub_df["center_x_pix"], per_image_sub_df["center_y_pix"], per_image_sub_df["location/min_dist_A"]):
+
+        print(x, y, radius/PX_SIZE_ANG)
+
+        particles_patch = Circle((x,y), radius=radius, fill=False)
+        axes.add_patch(particles_patch)
+        
 
 
-    for x, y, radius in zip(particle_locations_df["center_x_pix"], particle_locations_df["center_y_pix"], particle_locations_df["location/min_dist_A"]):
-
-        print(x,y,radius/PX_SIZE)
-        #TODO
+        
 
 
 
 test_img_file = random.sample(image_files, 1)[0]
 
-plot_image_with_particles(test_img_file.name, particle_locations)
+plot_image_with_particles(test_img_file, particle_locations)
+plt.show()
 
