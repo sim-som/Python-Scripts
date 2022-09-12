@@ -8,7 +8,9 @@ from pandas import DataFrame
 from pathlib import Path
 import mrcfile
 import random
+from skimage.filters import gaussian
 # %%
+IMAGE_DIR = Path("/u3/data/simon/20220307_GPCR_nanodisk_Simon/20220307_GPCR_nanodisk_Simon/average/")
 particle_location_cs_file = Path(r"/u3/data/simon/cryoSPARC_projects/P23/J73/P23_J73_passthrough_particles_selected.cs")
 particle_data_raw = np.load(particle_location_cs_file)
 # %%
@@ -75,10 +77,7 @@ particle_locations
 # %%
 # Check particle locations in images:
 
-image_dir = Path("/u3/data/simon/20220307_GPCR_nanodisk_Simon/20220307_GPCR_nanodisk_Simon/average/")
-
-# %%
-image_files =  list(image_dir.glob("*.mrc"))
+image_files =  list(IMAGE_DIR.glob("*.mrc"))
 
 # %%
 # read image data:
@@ -91,41 +90,58 @@ def read_image_data_from_mrc_file(file_p):
     return img_data, px_size
 
 test_img_file = random.sample(image_files, 1)[0]
-test_img = read_image_data_from_mrc_file(test_img_file)
-
-plt.imshow(test_img, cmap="gray")
-plt.title("Test image")
+test_img, _ = read_image_data_from_mrc_file(test_img_file)
 
 #%%
+plt.imshow(gaussian(test_img, sigma=1), cmap="gray")
+plt.title("Test image")
 
-test_img_file = random.sample(image_files, 1)[0]
 
 # %%
-# Given image name, plot image with annotated particles:
+# Given image file, plot image with annotated particles:
 
-def plot_image_with_particles(image_file_p:Path, particle_locations_df:DataFrame):
+def plot_image_with_particles(image_file_p, particle_locations_df:DataFrame):
 
     belongs_to_image = particle_locations_df["micrograph_file"] == image_file_p.name
     per_image_sub_df = particle_locations_df[belongs_to_image]
 
     img, PX_SIZE_ANG = read_image_data_from_mrc_file(image_file_p)
     
-    fig, axes = plt.subplots(dpi=500)
-    axes.imshow(img, cmap="gray")
+    print(image_file_p.name)
+
+    fig, axes = plt.subplots()
+    axes.imshow(gaussian(img), cmap="gray")
 
 
     for x, y, radius in zip(per_image_sub_df["center_x_pix"], per_image_sub_df["center_y_pix"], per_image_sub_df["location/min_dist_A"]):
 
+        # print("(x,y) = ", x, y)
 
-        particles_patch = Circle((x,y), radius, fill=False, color="g")
+        particles_patch = Circle((x,y), radius/PX_SIZE_ANG, fill=False, color="g")
         axes.add_patch(particles_patch)
-        
 
-
-
-
-
+# %%
 plot_image_with_particles(test_img_file, particle_locations)
-plt.savefig(f"particles_in_{test_img_file.stem}.png")
-plt.show()
+# plt.savefig(f"particles_in_{test_img_file.stem}.png")
 
+# %%
+# Get images with most particle locations
+
+# group location data by images:
+grouped_dict = particle_locations.groupby("micrograph_file").groups
+# Sort images by number of particles:
+image_file_names = list(grouped_dict.keys())
+image_file_names.sort(key=lambda item: - len(grouped_dict[item]))
+for file_name in image_file_names:
+    print(len(grouped_dict[file_name]))
+
+# %%
+# plot N images with most particles
+N = 10
+for i in range(N):
+    plot_image_with_particles(IMAGE_DIR / Path(image_file_names[i]), particle_locations)
+    plt.show()
+
+
+# %%
+plot_image_with_particles(IMAGE_DIR / Path(image_file_names[-1]), particle_locations)
