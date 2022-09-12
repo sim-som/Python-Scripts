@@ -1,6 +1,7 @@
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use("default")
 from matplotlib.patches import Circle
 import pandas as pd
 from pandas import DataFrame
@@ -95,6 +96,9 @@ test_img = read_image_data_from_mrc_file(test_img_file)
 plt.imshow(test_img, cmap="gray")
 plt.title("Test image")
 
+#%%
+
+test_img_file = random.sample(image_files, 1)[0]
 
 # %%
 # Given image name, plot image with annotated particles:
@@ -106,24 +110,22 @@ def plot_image_with_particles(image_file_p:Path, particle_locations_df:DataFrame
 
     img, PX_SIZE_ANG = read_image_data_from_mrc_file(image_file_p)
     
-    fig, axes = plt.subplots()
-    axes.imshow(img)
+    fig, axes = plt.subplots(dpi=500)
+    axes.imshow(img, cmap="gray")
+
 
     for x, y, radius in zip(per_image_sub_df["center_x_pix"], per_image_sub_df["center_y_pix"], per_image_sub_df["location/min_dist_A"]):
 
-        print(x, y, radius/PX_SIZE_ANG)
 
-        particles_patch = Circle((x,y), radius=radius, fill=False)
+        particles_patch = Circle((x,y), radius, fill=False, color="g")
         axes.add_patch(particles_patch)
         
 
 
-        
 
 
-
-test_img_file = random.sample(image_files, 1)[0]
 
 plot_image_with_particles(test_img_file, particle_locations)
+plt.savefig(f"particles_in_{test_img_file.stem}.png")
 plt.show()
 
