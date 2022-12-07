@@ -4,10 +4,10 @@ import mrcfile
 import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
-from natsort import natsorted
+# from natsort import natsorted
 # %%
 file_p = Path(
-    "/home/simon/jureca_scratch_mount/Trehalose_gunnar_2/Class2D/job122/run_it025_classes.mrcs"
+    "/u3/data/simon/image_data/cryoem_data/arctica/20221129_SiSo_Ins_Fib_Fractions/Extract/job006/average/FoilHole_29969857_Data_29966174_29966176_20221129_221246_fractions.mrcs"
 )
 assert file_p.exists() and file_p.is_file()
 
@@ -40,7 +40,7 @@ def plot_all(images):
         axs[i].set_yticks([])
     # plot images:
     for i in range(N):
-        axs[i].imshow(images[i, :, :])
+        axs[i].imshow(images[i, :, :], cmap="gray")
         axs[i].set_xlabel(f"Class {i}")
 
 plot_all(stack)
