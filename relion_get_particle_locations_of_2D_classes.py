@@ -14,7 +14,7 @@ import mrcfile
 # %%
 # file/directory management:
 data_star_file_p = Path(
-    "/home/simon/jureca_scratch_mount/20221129_SiSo_Ins_Fib_Fractions/relion4_processing/Class2D/job017/run_it050_data.star"
+    "/home/simon/jureca_scratch_mount/20221129_SiSo_Ins_Fib_Fractions/relion4_processing/Class2D/job024/run_it120_data.star"
 )
 assert data_star_file_p.exists() and data_star_file_p.is_file()
 job_dir_p = data_star_file_p.parent
