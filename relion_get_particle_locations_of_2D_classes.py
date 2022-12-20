@@ -69,7 +69,6 @@ print(f"Pixel size of 2D classes = {angpix_classes} A")
 box_size_ang = get_boxsize_from_particles_star_metadata(metadata, angpix_classes)
 print(f"Boxsize: {box_size_ang} A ")
 angpix_mic = get_micrograph_angpix() # not given what the angpix on microgprahps is ! #TODO
-box_size_px_mic = calc_boxsize_in_micrograph(box_size_ang=box_size_ang, angpix_classes=angpix_classes, angpix_mic=ang)
 
 # %% 
 # load img stack containing 2D classes
