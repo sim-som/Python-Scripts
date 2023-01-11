@@ -68,7 +68,7 @@ angpix_classes = get_classes_angpix_from_particles_star_metadata(metadata)
 print(f"Pixel size of 2D classes = {angpix_classes} A")
 box_size_ang = get_boxsize_from_particles_star_metadata(metadata, angpix_classes)
 print(f"Boxsize: {box_size_ang} A ")
-angpix_mic = get_micrograph_angpix() # not given what the angpix on microgprahps is ! #TODO
+angpix_mic = 0.816 # not given what the angpix on microgprahps is ! #TODO
 
 # %% 
 # load img stack containing 2D classes
@@ -98,7 +98,7 @@ plot_all(stack)
 plt.show()
 # %%
 # ID of the class of interest (Get this from the relion gui or the plot above):
-class_id = 243
+class_id = 38
 
 class_particles = particles[particles["_rlnClassNumber"] == class_id]
 N_part = len(class_particles)
@@ -127,7 +127,7 @@ micrographs = list(pd.unique(class_particles["_rlnMicrographName"]))
 print(f"Number of micrographs with particles from class {class_id}: {len(micrographs)}")
 
 #%%
-max_image_num = 3
+max_image_num = 2
 mics_subset = random.sample(micrographs, max_image_num)
 #%%
 for mic in mics_subset:
