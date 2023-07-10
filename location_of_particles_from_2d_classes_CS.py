@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 from matplotlib.collections import PatchCollection
 import matplotlib as mpl
+from matplotlib import gridspec
 from pathlib import Path
 import random
 import mrcfile
@@ -27,16 +28,18 @@ def load_mrc_file(mrc_file_path):
 # %%
 
 cs_project_path = Path("/home/simon/simon_data/cryoSPARC_projects/CS-insulin-glargine")
+cs_job_id = 61
 
-particles_data_p = cs_project_path / Path("J56/J56_020_particles.cs")
-classes_data_p = cs_project_path / Path("J56/J56_020_class_averages.cs")
-particles_passthrough_p = cs_project_path / Path("J56/J56_passthrough_particles.cs")
+# particle data:
+particles_data_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_particles.cs")
+particles_passthrough_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_passthrough_particles.cs")
 
-
-
-classes_stk_p = Path("/home/simon/simon_data/cryoSPARC_projects/CS-insulin-glargine/J56/J56_020_class_averages.mrc")
+# class averages data:
+classes_data_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_class_averages.cs")
+classes_stk_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_class_averages.mrc")
 
 # %%
+# parsing functions:
 def get_col_names_and_dtypes(raw_cs_data:np.ndarray):
 
     dt = raw_cs_data.dtype
@@ -70,6 +73,11 @@ classes_df = read_raw_cs_data(np.load(classes_data_p))
 classes_df
 
 # %%
+
+with mrcfile.open(classes_stk_p) as f:
+    classes_img_stk = f.data
+
+# %%
 # Read particle data:
 particles_df = read_raw_cs_data(np.load(particles_data_p))
 particles_df
@@ -83,12 +91,25 @@ particles_pt_df
 particles_df_joined = pd.merge(particles_df, particles_pt_df, how="outer")
 particles_df_joined
 # %%
-# Get class with align. res. 8.1 A:
-class_spec_res = classes_df[np.isclose(classes_df["blob/res_A"], 8.1, atol=0.05)]
+# Get class with align. res. 6.2 A:
+class_spec_res = classes_df[np.isclose(classes_df["blob/res_A"], 6.2, atol=0.05)]
 class_spec_res
 # %%
 class_idx:int = class_spec_res["blob/idx"].iloc[0]
 print(f"Class index: {class_idx}")
+
+# %%
+# Class average:
+class_avg_img = classes_img_stk[class_idx,:,:]
+classes_angpix = classes_df["blob/psize_A"][0]
+boxsize_px = class_avg_img.shape[0]
+plt.figure()
+plt.imshow(class_avg_img, cmap="gray")
+plt.title("Class average")
+plt.xlabel(f"boxsize = {boxsize_px} px = {np.round(boxsize_px * classes_angpix, 0)} A")
+
+plt.show()
+
 # %%
 # particles belonging to that specific class:
 particles_of_class = particles_df_joined[particles_df_joined["alignments2D/class"] == class_idx]
@@ -110,15 +131,13 @@ def get_mic_path(cs_mic_string:str):
     return cs_project_path / Path(mic)
     
 mics_subset_abs_paths = [get_mic_path(mic) for mic in mics_subset]
-mics_subset_abs_paths
 # %%
 # Get the particles, that belong to the specified class AND are on the micrographs from the subset
 particles_subset = [particles_of_class[particles_of_class["location/micrograph_path"] == mic] for mic in mics_subset]
 particles_subset = pd.concat(particles_subset)
 print(f"{particles_subset.shape[0]} particles")
 particles_subset
-# %%
-particles_subset.columns
+
 # %%
 # Draw the particle boxes on the micrographs from the random subset
 
@@ -153,28 +172,43 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
     box_size = 576 # Hardcoded ! #TODO
 
     coords = get_coords(particles)
-    # patches = [Circle(xy, box_size//2, fill=False, edgecolor="tab:green") for xy in coords]
     patches = [Rectangle(xy + np.array([box_size // 2]*2), box_size, box_size, fill=False, edgecolor="tab:green") for xy in coords]
 
     patch_collection = PatchCollection(patches, match_original=True)
 
     # class assingment confidence from "alignments2D/class_posterior":
     # Convert class posterior values to colors for particle drawing
-    print("Class posterior:")
-    print(particles["alignments2D/class_posterior"])
     colors = cmap(particles["alignments2D/class_posterior"])
     
      
 
+    fig = plt.figure(figsize=(12,12))
 
-    fig, ax = plt.subplots(figsize=(12,12))
-    ax.imshow(contrast_scaling(img_arr), cmap="gray")
+    gs = gridspec.GridSpec(2,1, height_ratios=[1, 3])
+
+    ax1 = fig.add_subplot(gs[0])
+
+    ax1.imshow(class_avg_img, cmap="gray")
+    ax1.set_title(f"Class {class_idx} @ {classes_data_p}")
+    res_ang = class_spec_res["blob/res_A"].values[0]
+    ax1.set_xlabel(f"boxsize = {boxsize_px} px = {np.round(boxsize_px * classes_angpix, 0)} A, Res = {np.round(res_ang, 1)} ")
+
+
+    ax2 = fig.add_subplot(gs[1])
+
+    ax2.imshow(contrast_scaling(img_arr), cmap="gray")
     # Draw particle boxes on micrograph:
-    ax.add_collection(patch_collection)
+    ax2.add_collection(patch_collection)
     # color particle boxes according to their class posterior
     patch_collection.set_edgecolor(colors)
 
     fig.colorbar(patch_collection, label="class posterior")
 
+    ax2.set_title(f"mic: {mic_abs_p.name}")
+
+    plt.tight_layout()
+
     plt.show()
+
+    break
 # %%
