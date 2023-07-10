@@ -34,6 +34,8 @@ cs_job_id = 61
 particles_data_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_particles.cs")
 particles_passthrough_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_passthrough_particles.cs")
 
+
+
 # class averages data:
 classes_data_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_class_averages.cs")
 classes_stk_p = cs_project_path / Path(f"J{cs_job_id}/J{cs_job_id}_020_class_averages.mrc")
@@ -78,6 +80,13 @@ with mrcfile.open(classes_stk_p) as f:
     classes_img_stk = f.data
 
 # %%
+# all picked particles data: #TODO
+# all_picked_particels_p = cs_project_path / Path("J32/J32_passthrough_particles.cs")
+# all_picked_particels_df = read_raw_cs_data(np.load(all_picked_particels_p))
+# all_picked_particels_df.columns
+
+
+# %%
 # Read particle data:
 particles_df = read_raw_cs_data(np.load(particles_data_p))
 particles_df
@@ -92,7 +101,11 @@ particles_df_joined = pd.merge(particles_df, particles_pt_df, how="outer")
 particles_df_joined
 # %%
 # Get class with align. res. 6.2 A:
-class_spec_res = classes_df[np.isclose(classes_df["blob/res_A"], 6.2, atol=0.05)]
+def get_class_with_certain_res(res_ang):
+
+    return classes_df[np.isclose(classes_df["blob/res_A"], res_ang, atol=0.05)]
+
+class_spec_res = get_class_with_certain_res(6.2)
 class_spec_res
 # %%
 class_idx:int = class_spec_res["blob/idx"].iloc[0]
@@ -118,11 +131,36 @@ particles_of_class
 # %%
 # all micrographs including particles that belong to the selected class:
 mics = particles_of_class["location/micrograph_path"].unique()
-mics.shape
+mics = list(mics)
+print(len(mics))
+
+# %% 
+# Count number of particles per micrograph
+part_cnts_per_mic = {}
+for mic in mics:
+    cnts = len(particles_of_class[particles_of_class["location/micrograph_path"] == mic])
+    part_cnts_per_mic[mic] = cnts
+
+plt.figure()
+plt.hist(part_cnts_per_mic.values())
+plt.xlabel("particles per microgrgraph")
+plt.ylabel("Count")
+
 # %%
-# Select random subset of those micrographs for inspection:
-n_sub = 10
-mics_subset = random.sample(list(mics), n_sub)
+# Sort mics by particle count:
+mics.sort(key=lambda mic: - part_cnts_per_mic[mic])
+for mic in mics:
+    print(part_cnts_per_mic[mic])
+
+# %%
+# Select subset of those micrographs for inspection:
+n_sub = 5
+
+# Use random subset:
+# mics_subset = random.sample(list(mics), n_sub)
+# Or most populated mics:
+mics_subset = mics[:n_sub]
+
 print(mics_subset)
 # %%
 # get the micrograph paths for all micrographs:
@@ -153,6 +191,12 @@ def get_coords(particles_df):
 
 
         xy_coords = np.array([x_coord_center_frac, y_coord_center_frac]) * mic_shape[::-1]
+
+        # shift = np.array(part["alignments2D/shift"])
+        
+        # xy_coords -= shift
+
+
         coords_list.append(xy_coords)
 
     return coords_list
@@ -210,5 +254,4 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
 
     plt.show()
 
-    break
 # %%
