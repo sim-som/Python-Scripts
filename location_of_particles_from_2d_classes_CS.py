@@ -81,10 +81,16 @@ with mrcfile.open(classes_stk_p) as f:
 
 # %%
 # all picked particles data: #TODO
-# all_picked_particels_p = cs_project_path / Path("J32/J32_passthrough_particles.cs")
-# all_picked_particels_df = read_raw_cs_data(np.load(all_picked_particels_p))
-# all_picked_particels_df.columns
 
+all_picked_particels_p = cs_project_path / Path("J32/extracted_particles.cs")
+all_picked_particels_df = read_raw_cs_data(np.load(all_picked_particels_p))
+
+all_picked_particels_pt_p = cs_project_path / Path("J32/J32_passthrough_particles.cs")
+all_picked_particels_pt_df = read_raw_cs_data(np.load(all_picked_particels_pt_p))
+
+
+
+all_picked_particels_df = pd.merge(all_picked_particels_df, all_picked_particels_pt_df, how="outer")
 
 # %%
 # Read particle data:
@@ -212,19 +218,34 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
 
     # get corresponding particles:
     particles = particles_of_class[particles_of_class["location/micrograph_path"] == mic]
-
     box_size = 576 # Hardcoded ! #TODO
-
     coords = get_coords(particles)
-    patches = [Rectangle(xy + np.array([box_size // 2]*2), box_size, box_size, fill=False, edgecolor="tab:green") for xy in coords]
 
+
+    # Draw particles on micrograph:
+    patches = [Rectangle(xy + np.array([box_size // 2]*2), box_size, box_size, fill=False, edgecolor="tab:green") for xy in coords]
     patch_collection = PatchCollection(patches, match_original=True)
 
     # class assingment confidence from "alignments2D/class_posterior":
     # Convert class posterior values to colors for particle drawing
     colors = cmap(particles["alignments2D/class_posterior"])
     
-     
+    
+    # Get locations of all particles from the same filaments:
+    all_picked_filament_particles = []
+    for fil_uid in particles["filament/filament_uid"].unique():
+        corr_fil_parts = all_picked_particels_df[all_picked_particels_df["filament/filament_uid"] == fil_uid]
+        all_picked_filament_particles.append(corr_fil_parts)
+    all_picked_filament_particles = pd.concat(all_picked_filament_particles)
+
+    filament_coords = get_coords(all_picked_filament_particles)
+
+    # Draw all filament particles:
+    patches_all_filament_particles = [Rectangle(xy + np.array([box_size // 2]*2), box_size, box_size, fill=False, edgecolor="tab:red", alpha = 0.6) for xy in filament_coords]
+    patches_all_filament_particles = PatchCollection(patches_all_filament_particles, match_original=True)
+
+
+
 
     fig = plt.figure(figsize=(12,12))
 
@@ -248,10 +269,15 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
 
     fig.colorbar(patch_collection, label="class posterior")
 
+    # Draw all filament particles:
+    ax2.add_collection(patches_all_filament_particles)
+
     ax2.set_title(f"mic: {mic_abs_p.name}")
 
     plt.tight_layout()
 
     plt.show()
+
+    break
 
 # %%
