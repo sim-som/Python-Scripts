@@ -12,8 +12,9 @@ from skimage import exposure
 # %%
 # Own modules:
 import sys
-path_to_starparse_module = Path(r"c:\Users\simon\OneDrive\Dokumente\Promotion\Code\starparse_module")
-sys.path.append(path_to_starparse_module)
+path_to_starparse_module = Path.home() / Path("OneDrive/Dokumente/Promotion/Code/starparse_module")
+assert path_to_starparse_module.exists()
+sys.path.append(str(path_to_starparse_module))
 from starparse_module_general import parse_star_file
 
 # %%
@@ -31,10 +32,15 @@ def load_mrc_file(mrc_file_path):
     with mrcfile.open(mrc_file_path) as f:
         img_data = f.data
     return img_data
+
+def get_angpix(mrc_file_path) -> float:
+    with mrcfile.open(mrc_file_path) as f:
+        angpix = float(f.voxel_size.x)
+    return angpix
 # %%
 # File locations:
 
-relion_project_path = Path("/home/simon/simon_data/cryoSPARC_projects/CS-insulin-glargine")
+relion_project_path = Path("/home/simon/judac_scratch_mount/SiSo-Krios-Ins_Glarg_3-Acquistion-20230623/relion4_proc")
 relion_job_id = "073"
 
 # particle data:
@@ -42,47 +48,21 @@ particles_data_p = relion_project_path / Path(f"Class2D/job{relion_job_id}/run_i
 
 
 # class averages data:
-classes_data_p = relion_project_path / Path(f"Class2D/job{relion_job_id}/")
-classes_stk_p = relion_project_path / Path(f"J{relion_job_id}/J{relion_job_id}_020_class_averages.mrc")
+classes_data_p = relion_project_path / Path(f"Class2D/job{relion_job_id}/run_it025_model.star")
+classes_stk_p = relion_project_path / Path(f"Class2D/job{relion_job_id}/run_it025_classes.mrcs")
 
 # %%
-# parsing functions:
-def get_col_names_and_dtypes(raw_cs_data:np.ndarray):
+# Load metadata describing Class averages:
 
-    dt = raw_cs_data.dtype
-    fields = dt.fields
-    fields = dict(fields)
-    col_names = list(fields.keys())
-    dtypes = list(fields.values())
-    return col_names, dtypes
-
-def read_raw_cs_data(raw_cs_data:np.ndarray):
-
-    col_names, dtypes = get_col_names_and_dtypes(raw_cs_data)
-
-    list_of_row_dicts = []
-
-    for i in range(len(raw_cs_data)):
-        
-        row = list(raw_cs_data[i])
-
-        row_dict = dict(zip(col_names, row))
-
-        # print(row_dict)
-        list_of_row_dicts.append(row_dict)
-    
-    data_df = pd.DataFrame(list_of_row_dicts)
-
-    return data_df
-
-# %%
-classes_df = read_raw_cs_data(np.load(classes_data_p))
+classes_df = parse_star_file(classes_data_p, keyword="data_model_classes")
 classes_df
 
 # %%
-
-with mrcfile.open(classes_stk_p) as f:
-    classes_img_stk = f.data
+# load mrc_stk with class averages
+classes_img_stk = load_mrc_file(classes_stk_p)
+classes_angpix = get_angpix(classes_stk_p)
+print(f"Classes pix = {classes_angpix} A")
+classes_img_stk.shape
 
 # %%
 # all picked particles data: #TODO
@@ -119,7 +99,6 @@ print(f"Class index: {class_idx}")
 # %%
 # Class average:
 class_avg_img = classes_img_stk[class_idx,:,:]
-classes_angpix = classes_df["blob/psize_A"][0]
 boxsize_px = class_avg_img.shape[0]
 plt.figure()
 plt.imshow(class_avg_img, cmap="gray")
