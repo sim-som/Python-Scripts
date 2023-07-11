@@ -55,6 +55,8 @@ classes_stk_p = relion_project_path / Path(f"Class2D/job{relion_job_id}/run_it02
 # Load metadata describing Class averages:
 
 classes_df = parse_star_file(classes_data_p, keyword="data_model_classes")
+# Add class number (index + 1)
+classes_df["ClassNumber"] = pd.Series(classes_df.index + 1)
 classes_df
 
 # %%
@@ -73,28 +75,24 @@ classes_img_stk.shape
 
 # %%
 # Read particle data:
-particles_df = read_raw_cs_data(np.load(particles_data_p))
+particles_df = parse_star_file(particles_data_p, keyword="data_particles")
 particles_df
-# %%
-# Read "passthrough" particles data:
-particles_pt_df = read_raw_cs_data(np.load(particles_passthrough_p))
-particles_pt_df
-
-# %%
-# combine particle data:
-particles_df_joined = pd.merge(particles_df, particles_pt_df, how="outer")
-particles_df_joined
 # %%
 # Get class with align. res. 6.2 A:
 def get_class_with_certain_res(res_ang):
 
-    return classes_df[np.isclose(classes_df["blob/res_A"], res_ang, atol=0.05)]
+    return classes_df[np.isclose(classes_df["EstimatedResolution"], res_ang, atol=0.05)]
 
-class_spec_res = get_class_with_certain_res(6.2)
-class_spec_res
+def get_class(ClassNumber):
+    return classes_df[classes_df["ClassNumber"] == ClassNumber]
+
+selected_class = get_class(81)
+selected_class
 # %%
-class_idx:int = class_spec_res["blob/idx"].iloc[0]
-print(f"Class index: {class_idx}")
+class_num = selected_class.ClassNumber.iloc[0]
+print(f"Class number: {class_num}")
+class_idx:int = pd.Series(selected_class.index).iloc[0]
+print(f"Class index ( = class_num -1): {class_idx}")
 
 # %%
 # Class average:
@@ -109,12 +107,12 @@ plt.show()
 
 # %%
 # particles belonging to that specific class:
-particles_of_class = particles_df_joined[particles_df_joined["alignments2D/class"] == class_idx]
+particles_of_class = particles_df[particles_df["ClassNumber"] == class_num]
 particles_of_class
 
 # %%
 # all micrographs including particles that belong to the selected class:
-mics = particles_of_class["location/micrograph_path"].unique()
+mics = particles_of_class["MicrographName"].unique()
 mics = list(mics)
 print(len(mics))
 
@@ -122,7 +120,7 @@ print(len(mics))
 # Count number of particles per micrograph
 part_cnts_per_mic = {}
 for mic in mics:
-    cnts = len(particles_of_class[particles_of_class["location/micrograph_path"] == mic])
+    cnts = len(particles_of_class[particles_of_class["MicrographName"] == mic])
     part_cnts_per_mic[mic] = cnts
 
 plt.figure()
@@ -133,12 +131,10 @@ plt.ylabel("Count")
 # %%
 # Sort mics by particle count:
 mics.sort(key=lambda mic: - part_cnts_per_mic[mic])
-for mic in mics:
-    print(part_cnts_per_mic[mic])
 
 # %%
 # Select subset of those micrographs for inspection:
-n_sub = 5
+n_sub = 10
 
 # Use random subset:
 # mics_subset = random.sample(list(mics), n_sub)
@@ -148,14 +144,13 @@ mics_subset = mics[:n_sub]
 print(mics_subset)
 # %%
 # get the micrograph paths for all micrographs:
-def get_mic_path(cs_mic_string:str):
-    mic = str(cs_mic_string).strip("'b")
-    return relion_project_path / Path(mic)
+def get_mic_path(relion_mic_string:str):
+    return relion_project_path / Path(relion_mic_string)
     
 mics_subset_abs_paths = [get_mic_path(mic) for mic in mics_subset]
 # %%
 # Get the particles, that belong to the specified class AND are on the micrographs from the subset
-particles_subset = [particles_of_class[particles_of_class["location/micrograph_path"] == mic] for mic in mics_subset]
+particles_subset = [particles_of_class[particles_of_class["MicrographName"] == mic] for mic in mics_subset]
 particles_subset = pd.concat(particles_subset)
 print(f"{particles_subset.shape[0]} particles")
 particles_subset
@@ -167,19 +162,12 @@ def get_coords(particles_df):
 
     coords_list = []
     for idx, part in particles_df.iterrows():
-        
-        mic_shape = part["location/micrograph_shape"]
 
-        x_coord_center_frac = part["location/center_x_frac"]
-        y_coord_center_frac = part["location/center_y_frac"]
+        x_coord = part["CoordinateX"]
+        y_coord = part["CoordinateY"]
 
 
-        xy_coords = np.array([x_coord_center_frac, y_coord_center_frac]) * mic_shape[::-1]
-
-        # shift = np.array(part["alignments2D/shift"])
-        
-        # xy_coords -= shift
-
+        xy_coords = np.array([x_coord, y_coord])
 
         coords_list.append(xy_coords)
 
@@ -195,7 +183,7 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
     img_arr = load_mrc_file(mic_abs_p) 
 
     # get corresponding particles:
-    particles = particles_of_class[particles_of_class["location/micrograph_path"] == mic]
+    particles = particles_of_class[particles_of_class["MicrographName"] == mic]
 
     box_size = 576 # Hardcoded ! #TODO
 
@@ -204,9 +192,9 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
 
     patch_collection = PatchCollection(patches, match_original=True)
 
-    # class assingment confidence from "alignments2D/class_posterior":
+    # class assingment confidence from "MaxValueProbDistribution":
     # Convert class posterior values to colors for particle drawing
-    colors = cmap(particles["alignments2D/class_posterior"])
+    colors = cmap(particles["MaxValueProbDistribution"])
     
      
 
@@ -217,14 +205,14 @@ for mic, mic_abs_p in zip(mics_subset, mics_subset_abs_paths):
     ax1 = fig.add_subplot(gs[0])
 
     ax1.imshow(class_avg_img, cmap="gray")
-    ax1.set_title(f"Class {class_idx} @ {classes_data_p}")
-    res_ang = class_spec_res["blob/res_A"].values[0]
+    ax1.set_title(f"Class {class_num} @ {classes_data_p}")
+    res_ang = selected_class["EstimatedResolution"].values[0]
     ax1.set_xlabel(f"boxsize = {boxsize_px} px = {np.round(boxsize_px * classes_angpix, 0)} A, Res = {np.round(res_ang, 1)} ")
 
 
     ax2 = fig.add_subplot(gs[1])
 
-    ax2.imshow(contrast_scaling(img_arr), cmap="gray")
+    ax2.imshow(contrast_scaling(img_arr, p=5), cmap="gray")
     # Draw particle boxes on micrograph:
     ax2.add_collection(patch_collection)
     # color particle boxes according to their class posterior
